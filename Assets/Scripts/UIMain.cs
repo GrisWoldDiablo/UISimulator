@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
@@ -43,15 +44,24 @@ public class UIMain : MonoBehaviour
 	private Button _buttonNext;
 
 	[SerializeField]
-	private UITextLabel _mouseLabel;
+	private Button _buttonQuit;
+
+	[SerializeField]
+	private UIStatsHeader _statsHeader;
+
+	[SerializeField]
+	private Toggle _labelToggle;
 
 	private int _currentIndex = 0;
 
-	private Stack<UITextLabel> _labels = new();
+	private Stack<UIStatsHeader> _statsHeaders = new();
+
+	private List<UIScreenSpaceLabel> _screenSpaceLabels = new();
 
 	private void Awake()
 	{
-		_mouseLabel.gameObject.SetActive(false);
+		_statsHeader.gameObject.SetActive(false);
+		_labelToggle.onValueChanged.AddListener(OnToggleLabel);
 	}
 
 	void Start()
@@ -59,7 +69,8 @@ public class UIMain : MonoBehaviour
 		_buttonTest.onClick.AddListener(OnClicked);
 		_buttonPrevious.onClick.AddListener(OnClickedPrevious);
 		_buttonNext.onClick.AddListener(OnClickedNext);
-
+		_buttonQuit.onClick.AddListener(OnClickedQuit);
+		
 		foreach (var canvas in _canvas)
 		{
 			canvas.SetActive(false);
@@ -67,7 +78,7 @@ public class UIMain : MonoBehaviour
 
 		ChangeIndex(0);
 	}
-
+	
 	private void Update()
 	{
 		if (Input.GetKeyDown(KeyCode.Escape))
@@ -76,6 +87,7 @@ public class UIMain : MonoBehaviour
 			StartCoroutine(Fading());
 		}
 	}
+
 
 	private void ChangeIndex(int value)
 	{
@@ -112,9 +124,11 @@ public class UIMain : MonoBehaviour
 
 	IEnumerator Fading()
 	{
+		_mainMenu.interactable = false;
 		bool shouldFade = _mainMenu.alpha > 0.0f;
 		if (!shouldFade)
 		{
+			Cursor.lockState = CursorLockMode.None;
 			_mainMenu.gameObject.SetActive(true);
 		}
 
@@ -128,7 +142,12 @@ public class UIMain : MonoBehaviour
 
 		if (shouldFade)
 		{
+			Cursor.lockState = CursorLockMode.Locked;
 			_mainMenu.gameObject.SetActive(false);
+		}
+		else
+		{
+			_mainMenu.interactable = true;
 		}
 
 		Debug.Log("Fading After");
@@ -144,21 +163,56 @@ public class UIMain : MonoBehaviour
 		ChangeIndex(1);
 	}
 
-	public UITextLabel GetTextLabel(string labelText)
+	private void OnClickedQuit()
 	{
-		if (!_labels.TryPop(out var label))
-		{
-			label = Instantiate(_mouseLabel, _hud.transform);
-		}
-
-		label.gameObject.SetActive(true);
-		label.SetText(labelText);
-		return label;
+		Application.Quit();
+#if UNITY_EDITOR
+		EditorApplication.isPlaying = false;
+#endif
 	}
 
-	public void ReturnTextLabel(UITextLabel label)
+	public UIStatsHeader GetStatsHeader(StatsScriptable stats)
 	{
-		label.gameObject.SetActive(false);
-		_labels.Push(label);
+		if (!_statsHeaders.TryPop(out var statsHeader))
+		{
+			statsHeader = Instantiate(_statsHeader, _hud.transform);
+		}
+
+		statsHeader.gameObject.SetActive(true);
+		statsHeader.SetStats(stats);
+		return statsHeader;
+	}
+
+	public void ReturnStatsHeader(UIStatsHeader statsHeader)
+	{
+		statsHeader.gameObject.SetActive(false);
+		_statsHeaders.Push(statsHeader);
+	}
+
+	public void RegisterScreenSpaceLabel(UIScreenSpaceLabel screenSpaceLabel)
+	{
+		if (screenSpaceLabel)
+		{
+			_screenSpaceLabels.Add(screenSpaceLabel);
+		}
+	}
+
+	public void UnregisterScreenSpaceLabel(UIScreenSpaceLabel screenSpaceLabel)
+	{
+		if (screenSpaceLabel)
+		{
+			_screenSpaceLabels.Remove(screenSpaceLabel);
+		}
+	}
+
+	private void OnToggleLabel(bool checkValue)
+	{
+		foreach (var screenSpaceLabel in _screenSpaceLabels)
+		{
+			if (screenSpaceLabel)
+			{
+				screenSpaceLabel.IsVisible = checkValue;
+			}
+		}
 	}
 }
