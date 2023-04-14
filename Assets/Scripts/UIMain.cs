@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
@@ -35,6 +36,9 @@ public class UIMain : MonoBehaviour
 	private GameObject[] _canvas;
 
 	[SerializeField]
+	private Button _buttonScene;
+
+	[SerializeField]
 	private Button _buttonTest;
 
 	[SerializeField]
@@ -52,25 +56,48 @@ public class UIMain : MonoBehaviour
 	[SerializeField]
 	private Toggle _labelToggle;
 
-	private int _currentIndex = 0;
+	private int _currentCanvasIndex = 0;
+	private int _currentSceneIndex = 0;
 
 	private Stack<UIStatsHeader> _statsHeaders = new();
 
 	private List<UIScreenSpaceLabel> _screenSpaceLabels = new();
 
+	public bool IsMainMenuOn { get; private set; } = true;
+
 	private void Awake()
 	{
+		if (Get() == this)
+		{
+			DontDestroyOnLoad(this);
+		}
+		else
+		{
+			DestroyImmediate(this);
+			return;
+		}
+
 		_statsHeader.gameObject.SetActive(false);
 		_labelToggle.onValueChanged.AddListener(OnToggleLabel);
+
+		for (int i = _currentSceneIndex; i < SceneManager.sceneCount; i++)
+		{
+			if (SceneManager.GetSceneAt(i) == SceneManager.GetActiveScene())
+			{
+				_currentSceneIndex = i;
+				break;
+			}
+		}
 	}
 
 	void Start()
 	{
-		_buttonTest.onClick.AddListener(OnClicked);
+		_buttonScene.onClick.AddListener(OnSceneClicked);
+		_buttonTest.onClick.AddListener(OnTestClicked);
 		_buttonPrevious.onClick.AddListener(OnClickedPrevious);
 		_buttonNext.onClick.AddListener(OnClickedNext);
 		_buttonQuit.onClick.AddListener(OnClickedQuit);
-		
+
 		foreach (var canvas in _canvas)
 		{
 			canvas.SetActive(false);
@@ -78,37 +105,42 @@ public class UIMain : MonoBehaviour
 
 		ChangeIndex(0);
 	}
-	
-	private void Update()
+
+	private void OnSceneClicked()
 	{
-		if (Input.GetKeyDown(KeyCode.Escape))
+		_currentSceneIndex++;
+		if (_currentSceneIndex == SceneManager.sceneCountInBuildSettings)
 		{
-			// _mainMenu.gameObject.SetActive(!_mainMenu.gameObject.activeSelf);
-			StartCoroutine(Fading());
+			_currentSceneIndex = 0;
 		}
+
+		SceneManager.LoadScene(_currentSceneIndex);
 	}
 
+	public void ToggleMainMenu()
+	{
+		StartCoroutine(Fading());
+	}
 
 	private void ChangeIndex(int value)
 	{
-		_canvas[_currentIndex].SetActive(false);
+		_canvas[_currentCanvasIndex].SetActive(false);
 
+		_currentCanvasIndex += value;
 
-		_currentIndex += value;
-
-		if (_currentIndex >= _canvas.Length)
+		if (_currentCanvasIndex >= _canvas.Length)
 		{
-			_currentIndex = 0;
+			_currentCanvasIndex = 0;
 		}
-		else if (_currentIndex < 0)
+		else if (_currentCanvasIndex < 0)
 		{
-			_currentIndex = _canvas.Length - 1;
+			_currentCanvasIndex = _canvas.Length - 1;
 		}
 
-		_canvas[_currentIndex].SetActive(true);
+		_canvas[_currentCanvasIndex].SetActive(true);
 	}
 
-	private void OnClicked()
+	private void OnTestClicked()
 	{
 		Debug.Log($"Clicked time is {DateTime.Now.ToLongDateString()} ");
 		Fade();
@@ -144,9 +176,11 @@ public class UIMain : MonoBehaviour
 		{
 			Cursor.lockState = CursorLockMode.Locked;
 			_mainMenu.gameObject.SetActive(false);
+			IsMainMenuOn = false;
 		}
 		else
 		{
+			IsMainMenuOn = true;
 			_mainMenu.interactable = true;
 		}
 

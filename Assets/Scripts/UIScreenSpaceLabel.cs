@@ -6,6 +6,8 @@ public class UIScreenSpaceLabel : MonoBehaviour
 	private StatsScriptable _stats;
 
 	[SerializeField]
+	private float _maxViewDistance = 20.0f;
+
 	public bool IsVisible
 	{
 		get => _isVisible;
@@ -18,7 +20,7 @@ public class UIScreenSpaceLabel : MonoBehaviour
 			}
 		}
 	}
-	
+
 	public bool ShouldRenderLabel
 	{
 		get => _shouldRenderLabel;
@@ -70,8 +72,15 @@ public class UIScreenSpaceLabel : MonoBehaviour
 			_statsHeader.transform.position = _camera.WorldToScreenPoint(transform.position);
 		}
 
-		Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(_camera);
-		ShouldRenderLabel = GeometryUtility.TestPlanesAABB(frustumPlanes, _renderer.bounds);
+		if (_maxViewDistance < Vector3.Distance(_camera.transform.position, transform.position))
+		{
+			ShouldRenderLabel = false;
+		}
+		else
+		{
+			Plane[] frustumPlanes = GeometryUtility.CalculateFrustumPlanes(_camera);
+			ShouldRenderLabel = GeometryUtility.TestPlanesAABB(frustumPlanes, _renderer.bounds);
+		}
 	}
 
 	private void UpdateVisibility()
